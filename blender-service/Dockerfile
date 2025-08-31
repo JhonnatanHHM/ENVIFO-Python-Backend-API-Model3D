@@ -5,8 +5,11 @@ FROM linuxserver/blender:version-3.6.3 as blender
 FROM python:3.10-slim
 
 # Copiar Blender desde la primera etapa
-COPY --from=blender /blender /blender
-ENV PATH="/blender:${PATH}"
+COPY --from=blender /usr/bin/blender /usr/bin/blender
+COPY --from=blender /usr/share/blender /usr/share/blender
+
+# Asegurar que esté en el PATH
+ENV PATH="/usr/bin:${PATH}"
 
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
