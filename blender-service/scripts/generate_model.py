@@ -25,13 +25,20 @@ if not os.path.exists(image_path):
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 # -------------------------
-# Crear cubo sólido centrado en Z con las dimensiones indicadas
+# Crear plano escalado según width y height
 # -------------------------
-bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, depth / 2))
-obj = bpy.context.active_object
-obj.scale.x = width / 2
-obj.scale.y = height / 2
-obj.scale.z = depth / 2
+bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 0, 0))
+plane = bpy.context.active_object
+plane.scale.x = width / 2
+plane.scale.y = height / 2
+
+# -------------------------
+# Aplicar profundidad con Solidify si depth > 0
+# -------------------------
+if depth > 0:
+    solidify = plane.modifiers.new(name="Solidify", type='SOLIDIFY')
+    solidify.thickness = depth
+    bpy.ops.object.modifier_apply(modifier=solidify.name)
 
 # -------------------------
 # Crear material y aplicar la textura
@@ -52,23 +59,17 @@ tex_image_node.image = bpy.data.images.load(image_path)
 links.new(bsdf_node.inputs['Base Color'], tex_image_node.outputs['Color'])
 links.new(output_node.inputs['Surface'], bsdf_node.outputs['BSDF'])
 
-# Asignar material al objeto
-obj.data.materials.append(mat)
-
-# -------------------------
-# Aplicar modificadores si existen
-# -------------------------
-for mod in obj.modifiers:
-    bpy.ops.object.modifier_apply(modifier=mod.name)
+# Asignar material al plano
+plane.data.materials.append(mat)
 
 # -------------------------
 # Seleccionar objeto antes de exportar
 # -------------------------
 bpy.ops.object.select_all(action='DESELECT')
-obj.select_set(True)
-bpy.context.view_layer.objects.active = obj
+plane.select_set(True)
+bpy.context.view_layer.objects.active = plane
 
-# ⚡ Actualizar el layer para headless
+# Actualizar view layer para headless
 bpy.context.view_layer.update()
 
 # -------------------------
