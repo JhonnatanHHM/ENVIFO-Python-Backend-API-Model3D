@@ -1,5 +1,5 @@
-# Etapa 1: usar la imagen oficial de Blender
-FROM blender/blender:3.6.0 as blender
+# Etapa 1: usar una imagen de Blender existente
+FROM linuxserver/blender:version-3.6.3 as blender
 
 # Etapa 2: imagen base de Python
 FROM python:3.10-slim
@@ -23,8 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar el resto del código de la aplicación
 COPY . .
 
-# Exponer el puerto para FastAPI
+# Exponer el puerto FastAPI
 EXPOSE 8000
 
-# Comando por defecto para iniciar la app
+# Comando por defecto
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
