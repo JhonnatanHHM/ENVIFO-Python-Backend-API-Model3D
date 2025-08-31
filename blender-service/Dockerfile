@@ -1,38 +1,36 @@
-# Etapa 1: usar una imagen de Blender existente
-FROM linuxserver/blender:version-3.6.3 as blender
+# Imagen base headless Blender 4.1
+FROM blenderkit/headless-blender:blender-4.1 as blender
 
-# Etapa 2: imagen base de Python
+# Imagen base Python
 FROM python:3.10-slim
 
 # Copiar Blender desde la primera etapa
-COPY --from=blender /blender /blender
+COPY --from=blender /home/headless/blender /blender
 
-# Asegurar que Blender esté en el PATH
+# Asegurar que Blender esté en PATH
 ENV PATH="/blender:${PATH}"
-
-# Crear symlink para que 'blender' sea accesible
 RUN ln -s /blender/blender /usr/bin/blender
 
-# Instalar dependencias del sistema necesarias para Blender y OpenGL
+# Instalar dependencias del sistema necesarias
 RUN apt-get update && apt-get install -y \
     libgl1 libx11-6 libxi6 libxxf86vm1 libxrender1 libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Crear directorio de la aplicación
+# Directorio de trabajo
 WORKDIR /app
 
-# Copiar y activar dependencias de Python
+# Instalar dependencias Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el resto del código de la aplicación
+# Copiar scripts y app
 COPY . .
 
-# Crear carpeta para almacenar archivos generados (volumen compartido)
+# Carpeta para archivos generados
 RUN mkdir -p /app/data
 
-# Exponer el puerto FastAPI
+# Exponer puerto FastAPI
 EXPOSE 8080
 
-# Comando por defecto para levantar FastAPI
+# Comando por defecto
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
