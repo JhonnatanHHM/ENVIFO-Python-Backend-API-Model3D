@@ -7,13 +7,13 @@ FROM python:3.10-slim
 # Copiar Blender desde la primera etapa
 COPY --from=blender /blender /blender
 
-# Asegurar que esté en el PATH
+# Asegurar que Blender esté en el PATH
 ENV PATH="/blender:${PATH}"
 
-# Crear symlink para asegurar el binario accesible
+# Crear symlink para que 'blender' sea accesible
 RUN ln -s /blender/blender /usr/bin/blender
 
-# Instalar dependencias del sistema
+# Instalar dependencias del sistema necesarias para Blender y OpenGL
 RUN apt-get update && apt-get install -y \
     libgl1 libx11-6 libxi6 libxxf86vm1 libxrender1 libxext6 \
     && rm -rf /var/lib/apt/lists/*
@@ -28,8 +28,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar el resto del código de la aplicación
 COPY . .
 
+# Crear carpeta para almacenar archivos generados (volumen compartido)
+RUN mkdir -p /app/data
+
 # Exponer el puerto FastAPI
 EXPOSE 8080
 
-# Comando por defecto
+# Comando por defecto para levantar FastAPI
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]

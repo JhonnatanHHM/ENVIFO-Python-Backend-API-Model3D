@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
 # Crear directorio de la app
 WORKDIR /app
 
+# Crear carpeta para archivos temporales / shared_data
+RUN mkdir -p /app/data
+
 # Copiar requirements y instalarlos
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
