@@ -1,54 +1,75 @@
 import bpy
 import sys
+from pathlib import Path
+import os
 
-# Argumentos después de "--"
-argv = sys.argv
-argv = argv[argv.index("--") + 1:]
+# -------------------------
+# Argumentos desde Python API
+# -------------------------
+argv_index = sys.argv.index("--")
+argv = sys.argv[argv_index + 1:]
 
 image_path = argv[0]
+width = float(argv[1])
+height = float(argv[2])
+depth = float(argv[3])
 glb_path = argv[4]
 
-# Leer dimensiones si se pasaron
-width = float(argv[1]) if len(argv) > 2 else 2
-height = float(argv[2]) if len(argv) > 3 else 2
-depth = float(argv[3]) if len(argv) > 4 else 0.1
+# Validar que la imagen exista
+if not os.path.exists(image_path):
+    raise FileNotFoundError(f"Imagen no encontrada: {image_path}")
 
+# -------------------------
 # Limpiar escena
+# -------------------------
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
-# Crear plano y escalar según width, height
-bpy.ops.mesh.primitive_plane_add(size=1)  # plano de 1x1
-plane = bpy.context.active_object
-plane.scale.x = width / 2   # Blender escala desde centro
-plane.scale.y = height / 2
+# -------------------------
+# Crear cubo sólido centrado en Z con las dimensiones indicadas
+# -------------------------
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, depth / 2))
+obj = bpy.context.active_object
+obj.scale.x = width / 2
+obj.scale.y = height / 2
+obj.scale.z = depth / 2
 
-# Crear material con la imagen
+# -------------------------
+# Crear material y aplicar la textura
+# -------------------------
 mat = bpy.data.materials.new(name="ImageMaterial")
 mat.use_nodes = True
 nodes = mat.node_tree.nodes
 links = mat.node_tree.links
+nodes.clear()
 
-# Limpiar nodos por defecto
-for node in nodes:
-    nodes.remove(node)
+# Nodos principales
+output_node = nodes.new(type='ShaderNodeOutputMaterial')
+bsdf_node = nodes.new(type='ShaderNodeBsdfPrincipled')
+tex_image_node = nodes.new(type='ShaderNodeTexImage')
+tex_image_node.image = bpy.data.images.load(image_path)
 
-output = nodes.new(type='ShaderNodeOutputMaterial')
-bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
-tex_image = nodes.new(type='ShaderNodeTexImage')
-tex_image.image = bpy.data.images.load(image_path)
-links.new(bsdf.inputs['Base Color'], tex_image.outputs['Color'])
-links.new(output.inputs['Surface'], bsdf.outputs['BSDF'])
-plane.data.materials.append(mat)
+# Conectar nodos
+links.new(bsdf_node.inputs['Base Color'], tex_image_node.outputs['Color'])
+links.new(output_node.inputs['Surface'], bsdf_node.outputs['BSDF'])
 
-# Ajustar altura Z si depth > 0
-if depth > 0:
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.extrude_region_move(
-        TRANSFORM_OT_translate={"value": (0, 0, depth)}
-    )
-    bpy.ops.object.mode_set(mode='OBJECT')
+# Asignar material al objeto
+obj.data.materials.append(mat)
 
+# -------------------------
+# Seleccionar objeto antes de exportar
+# -------------------------
+bpy.ops.object.select_all(action='DESELECT')
+obj.select_set(True)
+bpy.context.view_layer.objects.active = obj
+
+# -------------------------
+# Asegurar que la carpeta de salida exista
+# -------------------------
+Path(glb_path).parent.mkdir(parents=True, exist_ok=True)
+
+# -------------------------
 # Exportar GLB
+# -------------------------
 bpy.ops.export_scene.gltf(
     filepath=glb_path,
     export_format='GLB',
