@@ -56,11 +56,20 @@ links.new(output_node.inputs['Surface'], bsdf_node.outputs['BSDF'])
 obj.data.materials.append(mat)
 
 # -------------------------
+# Aplicar modificadores si existen
+# -------------------------
+for mod in obj.modifiers:
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+
+# -------------------------
 # Seleccionar objeto antes de exportar
 # -------------------------
 bpy.ops.object.select_all(action='DESELECT')
 obj.select_set(True)
 bpy.context.view_layer.objects.active = obj
+
+# ⚡ Actualizar el layer para headless
+bpy.context.view_layer.update()
 
 # -------------------------
 # Asegurar que la carpeta de salida exista
@@ -75,3 +84,5 @@ bpy.ops.export_scene.gltf(
     export_format='GLB',
     use_selection=True
 )
+
+print(f"GLB generado correctamente en: {glb_path}")
