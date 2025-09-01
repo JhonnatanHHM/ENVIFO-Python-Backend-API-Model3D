@@ -1,7 +1,7 @@
 import bpy
 import sys
-from pathlib import Path
 import os
+from pathlib import Path
 
 # -------------------------
 # Argumentos desde Python API
@@ -25,20 +25,12 @@ if not os.path.exists(image_path):
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 # -------------------------
-# Crear plano escalado según width y height
+# Crear plano con dimensiones width x height
 # -------------------------
 bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 0, 0))
 plane = bpy.context.active_object
 plane.scale.x = width / 2
 plane.scale.y = height / 2
-
-# -------------------------
-# Aplicar profundidad con Solidify si depth > 0
-# -------------------------
-if depth > 0:
-    solidify = plane.modifiers.new(name="Solidify", type='SOLIDIFY')
-    solidify.thickness = depth
-    bpy.ops.object.modifier_apply(modifier=solidify.name)
 
 # -------------------------
 # Crear material y aplicar la textura
@@ -59,8 +51,24 @@ tex_image_node.image = bpy.data.images.load(image_path)
 links.new(bsdf_node.inputs['Base Color'], tex_image_node.outputs['Color'])
 links.new(output_node.inputs['Surface'], bsdf_node.outputs['BSDF'])
 
-# Asignar material al plano
+# Asignar material al objeto
 plane.data.materials.append(mat)
+
+# -------------------------
+# Aplicar profundidad con Solidify si depth > 0
+# -------------------------
+if depth > 0:
+    solidify = plane.modifiers.new(name="Solidify", type='SOLIDIFY')
+    solidify.thickness = depth
+    bpy.ops.object.select_all(action='DESELECT')
+    plane.select_set(True)
+    bpy.context.view_layer.objects.active = plane
+    bpy.ops.object.modifier_apply(modifier=solidify.name)
+
+# -------------------------
+# Asegurar que la carpeta de salida exista
+# -------------------------
+Path(glb_path).parent.mkdir(parents=True, exist_ok=True)
 
 # -------------------------
 # Seleccionar objeto antes de exportar
@@ -68,14 +76,7 @@ plane.data.materials.append(mat)
 bpy.ops.object.select_all(action='DESELECT')
 plane.select_set(True)
 bpy.context.view_layer.objects.active = plane
-
-# Actualizar view layer para headless
 bpy.context.view_layer.update()
-
-# -------------------------
-# Asegurar que la carpeta de salida exista
-# -------------------------
-Path(glb_path).parent.mkdir(parents=True, exist_ok=True)
 
 # -------------------------
 # Exportar GLB
@@ -85,5 +86,3 @@ bpy.ops.export_scene.gltf(
     export_format='GLB',
     use_selection=True
 )
-
-print(f"GLB generado correctamente en: {glb_path}")
