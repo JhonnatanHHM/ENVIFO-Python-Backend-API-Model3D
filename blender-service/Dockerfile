@@ -1,7 +1,11 @@
-# Imagen base headless Blender 4.1
+# -----------------------------
+# Blender Headless 4.1 + Python
+# -----------------------------
+
+# Etapa 1: imagen base headless Blender
 FROM blenderkit/headless-blender:blender-4.1 as blender
 
-# Imagen base Python
+# Etapa 2: imagen base Python
 FROM python:3.10-slim
 
 # Copiar Blender desde la primera etapa
@@ -11,9 +15,21 @@ COPY --from=blender /home/headless/blender /blender
 ENV PATH="/blender:${PATH}"
 RUN ln -s /blender/blender /usr/bin/blender
 
-# Instalar dependencias del sistema necesarias
+# Instalar librerías de sistema necesarias para Blender
 RUN apt-get update && apt-get install -y \
-    libgl1 libx11-6 libxi6 libxxf86vm1 libxrender1 libxext6 libxfixes3 \
+    libgl1 \
+    libx11-6 \
+    libxi6 \
+    libxxf86vm1 \
+    libxrender1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libglib2.0-0 \
+    libfontconfig1 \
+    libfreetype6 \
+    libsm6 \
+    libice6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Directorio de trabajo
