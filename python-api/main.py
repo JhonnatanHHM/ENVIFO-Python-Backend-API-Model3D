@@ -11,8 +11,10 @@ from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI()
 
-# Nombre del host del contenedor Blender según docker-compose
-BLENDER_URL = os.getenv("BLENDER_URL", "http://blender:8080")
+# Construir la URL de Blender desde host y puerto
+BLENDER_HOST = os.getenv("BLENDER_HOST", "http://blender")
+BLENDER_PORT = os.getenv("BLENDER_PORT", "8080")
+BLENDER_URL = f"{BLENDER_HOST}:{BLENDER_PORT}"
 
 @app.post("/process-material/")
 async def process_material(
