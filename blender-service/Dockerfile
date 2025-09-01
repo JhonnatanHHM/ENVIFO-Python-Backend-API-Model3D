@@ -13,7 +13,7 @@ RUN ln -s /blender/blender /usr/bin/blender
 
 # Instalar dependencias del sistema necesarias
 RUN apt-get update && apt-get install -y \
-    libgl1 libx11-6 libxi6 libxxf86vm1 libxrender1 libxext6 \
+    libgl1 libx11-6 libxi6 libxxf86vm1 libxrender1 libxext6 libxfixes3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Directorio de trabajo
