@@ -1,55 +1,74 @@
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import FileResponse
-import tempfile
-import os
+from fastapi.responses import FileResponse, JSONResponse
+from pathlib import Path
 import shutil
 import subprocess
-from pathlib import Path
+import os
+import uuid
 
 app = FastAPI()
 
-# Carpeta temporal de salida dentro del contenedor
-OUTPUT_DIR = Path("/app/data")
-OUTPUT_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path("/app/data")
+SCRIPTS_DIR = Path("/app/scripts")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.post("/generate-model")
 async def generate_model(
-    imagen: UploadFile = File(...),
+    image: UploadFile = File(...),
     width: float = Form(...),
     height: float = Form(...),
     depth: float = Form(...)
 ):
-    """
-    Recibe la imagen y dimensiones desde python-api,
-    genera el .glb con Blender y lo devuelve al cliente.
-    """
     # Guardar imagen temporalmente
-    with tempfile.TemporaryDirectory() as temp_dir:
-        input_path = Path(temp_dir) / imagen.filename
-        with open(input_path, "wb") as f:
-            f.write(await imagen.read())
+    image_id = str(uuid.uuid4())
+    image_path = DATA_DIR / f"{image_id}_{image.filename}"
+    with open(image_path, "wb") as buffer:
+        shutil.copyfileobj(image.file, buffer)
 
-        # Ruta de salida
-        output_path = OUTPUT_DIR / f"{imagen.filename.split('.')[0]}.glb"
+    # Definir ruta de salida del modelo
+    glb_path = DATA_DIR / f"{image_id}.glb"
 
-        # Ejecutar Blender
-        script_path = Path("scripts/generate_model.py")
-        command = [
-            "blender", "-b", "-P", str(script_path), "--",
-            str(input_path),
-            str(width),
-            str(height),
-            str(depth),
-            str(output_path)
-        ]
-        try:
-            subprocess.run(command, check=True, capture_output=True)
-        except subprocess.CalledProcessError as e:
-            return {"status": "error", "details": e.stderr.decode()}
+    # Construir comando para Blender
+    blender_cmd = [
+        "blender",
+        "--background",
+        "--python", str(SCRIPTS_DIR / "generate_model.py"),
+        "--",
+        str(image_path),
+        str(width),
+        str(height),
+        str(depth),
+        str(glb_path)
+    ]
 
-        # Devolver el archivo .glb generado
-        return FileResponse(
-            path=output_path,
-            media_type="model/gltf-binary",
-            filename=output_path.name
+    # Ejecutar Blender y capturar logs
+    result = subprocess.run(
+        blender_cmd,
+        capture_output=True,
+        text=True
+    )
+
+    # Mostrar logs del script de Blender en los logs del contenedor
+    print("========== BLENDER STDOUT ==========")
+    print(result.stdout)
+    print("========== BLENDER STDERR ==========")
+    print(result.stderr)
+
+    # Manejo de errores
+    if result.returncode != 0 or not glb_path.exists():
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": "Error al generar el modelo 3D",
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            }
         )
+
+    # Devolver el archivo GLB generado
+    return FileResponse(
+        path=glb_path,
+        filename=glb_path.name,
+        media_type="model/gltf-binary"
+    )
