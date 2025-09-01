@@ -2,7 +2,8 @@ from fastapi import FastAPI, UploadFile, File, Form
 import json
 import os
 import tempfile
-from blender_service import generate_3d_model
+import requests
+from blender_service import generate_3d_model  # si lo necesitas internamente
 from rabbitmq_client import send_to_java_api
 from services.storage_service import upload_to_bucket
 from dotenv import load_dotenv
@@ -10,33 +11,56 @@ from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI()
 
+# Nombre del host del contenedor Blender según docker-compose
+BLENDER_URL = os.getenv("BLENDER_HOST", "http://blender:8080")
+
 @app.post("/process-material/")
 async def process_material(
     material: str = Form(...),
     imagen: UploadFile = File(...)
 ):
+    """
+    Recibe un material (JSON) y una imagen, llama al servicio Blender para generar un modelo 3D,
+    sube los archivos a R2 bucket y notifica a la API de Java.
+    """
+
     material_dto = json.loads(material)
 
-    # Crear directorio temporal que se elimina automáticamente
+    # Crear directorio temporal
     with tempfile.TemporaryDirectory() as temp_dir:
         image_path = os.path.join(temp_dir, imagen.filename)
         with open(image_path, "wb") as f:
             f.write(await imagen.read())
 
-        # Generar modelo 3D
-        glb_path = generate_3d_model(
-            image_path,
-            width=material_dto["width"],
-            height=material_dto["height"],
-            depth=1
-        )
+        # Preparar datos para enviar a Blender
+        data = {
+            "width": str(material_dto["width"]),
+            "height": str(material_dto["height"]),
+            "depth": str(material_dto.get("depth", 1.0))  # Default depth si no viene
+        }
+        files = {"image": open(image_path, "rb")}
 
-        # Subir archivos a bucket
+        # Llamar al servicio Blender
+        blender_resp = requests.post(f"{BLENDER_URL}/generate-model", data=data, files=files)
+        files["image"].close()
+
+        if blender_resp.status_code != 200:
+            return {
+                "status": "error",
+                "detail": blender_resp.text
+            }
+
+        # Guardar el archivo GLB temporalmente para subirlo
+        glb_temp_path = os.path.join(temp_dir, "model.glb")
+        with open(glb_temp_path, "wb") as f:
+            f.write(blender_resp.content)
+
+        # Subir archivos a Cloudflare R2
         bucket_name = os.getenv("R2_BUCKET")
         image_url = upload_to_bucket(bucket_name, image_path, f"images/{imagen.filename}")
-        glb_url = upload_to_bucket(bucket_name, glb_path, f"models/{os.path.basename(glb_path)}")
+        glb_url = upload_to_bucket(bucket_name, glb_temp_path, f"models/{os.path.basename(glb_temp_path)}")
 
-        # Enviar a la API de Java
+        # Enviar payload a la API de Java
         payload = {
             "material": material_dto,
             "imageUrl": image_url,
@@ -44,8 +68,6 @@ async def process_material(
             "status": "success"
         }
         send_to_java_api(payload)
-
-    # Al salir del bloque `with`, temp_dir y todos sus archivos se eliminan automáticamente
 
     return {
         "status": "processed",
