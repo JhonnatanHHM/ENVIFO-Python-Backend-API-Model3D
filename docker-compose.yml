@@ -32,6 +32,7 @@ services:
       RABBITMQ_DISK_FREE_LIMIT: 50MB           # asegura que no consuma disco infinito
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     deploy:
       resources:
         limits:
