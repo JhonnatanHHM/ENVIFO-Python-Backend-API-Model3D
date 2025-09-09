@@ -12,7 +12,12 @@ services:
       - rabbitmq
       - blender
     volumes:
-      - shared_data:/app/data   # Volumen compartido con Blender
+      - shared_data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+          cpus: "0.5"
 
   rabbitmq:
     image: rabbitmq:3.12-management
@@ -23,8 +28,15 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 0.4   # 40% de la RAM asignada → evita que explote
+      RABBITMQ_DISK_FREE_LIMIT: 50MB           # asegura que no consuma disco infinito
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+          cpus: "0.5"
 
   blender:
     build: ./blender-service
@@ -34,8 +46,13 @@ services:
     env_file:
       - .env
     volumes:
-      - shared_data:/app/data   # Volumen compartido con Python API
+      - shared_data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 350m
+          cpus: "0.5"
 
 volumes:
   rabbitmq_data:
-  shared_data:   # Este volumen compartido permite que ambos contenedores lean/escriban archivos
+  shared_data:
