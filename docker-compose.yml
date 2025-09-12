@@ -4,6 +4,7 @@ services:
   python-api:
     build: ./python-api
     container_name: python-api
+    restart: always
     ports:
       - "8000:8000"
     env_file:
@@ -22,6 +23,7 @@ services:
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: rabbitmq
+    restart: always
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -40,6 +42,7 @@ services:
   blender:
     build: ./blender-service
     container_name: blender
+    restart: always
     ports:
       - "8080:8080"
     env_file:
