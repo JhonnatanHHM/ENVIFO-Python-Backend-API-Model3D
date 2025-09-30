@@ -7,9 +7,18 @@ from blender_service import generate_3d_model  # si lo necesitas internamente
 from rabbitmq_client import send_to_java_api
 from services.storage_service import upload_to_bucket
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # <- o restringir al dominio de tu front
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Construir la URL de Blender desde host y puerto
 BLENDER_HOST = os.getenv("BLENDER_HOST", "http://blender")
